@@ -3,7 +3,7 @@
 job_scraper.py — Daily automated job discovery pipeline.
 
 Scrapes LinkedIn + Indeed via JobSpy, scores every new posting against
-the CV keyword banks, keeps the top 50% (status: 'queued') and logs the
+the CV keyword banks, keeps the top 10 (status: 'queued') and logs the
 rest (status: 'skipped') — all written directly to Tracker.xlsx.
 A prep folder with the raw JD and match details is created for every
 queued job, ready for the full Claude CLAUDE.md workflow.
@@ -26,7 +26,7 @@ import openpyxl
 
 # ── Paths ──────────────────────────────────────────────────────────────────────
 _HERE       = Path(__file__).parent
-CV_DIR      = _HERE.parent                              # C:\Users\yanng\Documents\CV
+CV_DIR      = _HERE.parent                              # C:\Users\Admin\Documents\CV
 TRACKER     = CV_DIR / 'Tracker.xlsx'
 
 # ── Search configuration ───────────────────────────────────────────────────────
@@ -73,21 +73,9 @@ HOURS_OLD          = 26   # catch jobs posted in the last ~24 h (with buffer)
 # ══════════════════════════════════════════════════════════════════════════════
 
 sys.path.insert(0, str(_HERE))
-from keywords import ALL_KEYWORDS, suggest_base   # noqa: E402
+from keywords import suggest_base   # noqa: E402
 
-_TOTAL_KW = len(ALL_KEYWORDS)
-
-
-def score_job(title: str, description: str) -> tuple[float, list[str]]:
-    """
-    Return (score_out_of_100, matched_keywords).
-    Score = matched / total_keywords * 100, capped at 100.
-    """
-    text = (title + ' ' + description).lower()
-    matched = [kw for kw in ALL_KEYWORDS if kw in text]
-    score = min(100, round(len(matched) / _TOTAL_KW * 100))
-    return score, matched
-
+#scoring is done in keywords.py, this file just calls the function and uses the score to sort the jobs into queued and skipped.
 
 # ══════════════════════════════════════════════════════════════════════════════
 #  Tracker integration
@@ -267,7 +255,13 @@ def main() -> None:
         url      = _safe_str(row.get('job_url'))
         desc     = _safe_str(row.get('description'))
 
-        score, keywords = score_job(title, desc)
+        # scoring see keywords.py
+        score_suggest=suggest_base(title+' '+desc, location)
+
+        seperator = score_suggest.find('_')
+        score = int(score_suggest[:seperator])
+        suggested_base = score_suggest[seperator+1:]
+
         scored.append({
             'title':       title,
             'company':     company,
@@ -275,15 +269,14 @@ def main() -> None:
             'description':  desc,
             'url':         url,
             'score':       score,
-            'keywords':    keywords,
             'description': desc,
-            'base_cv':     suggest_base(keywords, location),
+            'base_cv':     suggested_base,
         })
 
     scored.sort(key=lambda j: j['score'], reverse=True)
 
-    # ── 4. Top 50% split ──────────────────────────────────────────────────
-    cutoff  = max(1, (len(scored) + 1) // 2)   # ceiling of half
+    # ── 4. Top 10 split ──────────────────────────────────────────────────
+    cutoff  = max(len(scored), 10)   # ceiling of half
     queued  = scored[:cutoff]
     skipped = scored[cutoff:]
 
@@ -292,7 +285,7 @@ def main() -> None:
     for j in skipped:
         j['status'] = 'skipped'
 
-    print(f"Top 50% → queued: {len(queued)}   Bottom 50% → skipped: {len(skipped)}\n")
+    print(f"Top 10 → queued: {len(queued)}   Rest → skipped: {len(skipped)}\n")
 
     # ── 6. Write to Tracker.xlsx ──────────────────────────────────────────
     #    Queued → Sheet1 (main tracker)   Skipped → Sheet2
