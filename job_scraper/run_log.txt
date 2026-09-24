@@ -1,0 +1,6 @@
+==== Run started Tue 09/15/2026 22:27:48.63 ==== 
+2026-09-15 22:27:58,231 - INFO - JobSpy:Linkedin - finished scraping
+^C==== Run started Tue 09/15/2026 22:28:10.95 ==== 
+^C==== Run started Thu 09/17/2026 11:19:45.93 ==== 
+2026-09-17 11:19:55,638 - INFO - JobSpy:Linkedin - finished scraping
+^C

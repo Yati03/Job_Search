@@ -276,7 +276,7 @@ def main() -> None:
     scored.sort(key=lambda j: j['score'], reverse=True)
 
     # ── 4. Top 10 split ──────────────────────────────────────────────────
-    cutoff  = max(len(scored), 10)   # ceiling of half
+    cutoff  = min(len(scored), 10)   # ceiling of 10 jobs, or fewer if <10 new jobs
     queued  = scored[:cutoff]
     skipped = scored[cutoff:]
 
